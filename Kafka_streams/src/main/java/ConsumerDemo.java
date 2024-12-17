@@ -16,7 +16,7 @@ public class ConsumerDemo {
     public static void main(String[] args) {
         log.info("I am a Kafka Consumer");
 
-        String bootstrapServers = "kafka_devcontainer-broker1-1:9092";
+        String bootstrapServers = "kafka_streams_devcontainer-broker1-1:9092";
         String groupId = "my-fourth-application";
         String topic = "test_topic_with_partitions";
 
@@ -45,6 +45,9 @@ public class ConsumerDemo {
                 log.info("Partition: " + record.partition() + ", Offset:" + record.offset());
             }
         }
+
+
+
 
     }
 }

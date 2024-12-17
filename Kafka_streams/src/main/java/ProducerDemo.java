@@ -16,7 +16,7 @@ public class ProducerDemo {
     public static void main(String[] args) {
         log.info("I am a Kafka Producer");
 
-        String bootstrapServers = "kafka_devcontainer-broker1-1:9092";
+        String bootstrapServers = "kafka_streams_devcontainer-broker1-1:9092";
 
         // create Producer properties
         Properties properties = new Properties();
@@ -47,25 +47,25 @@ public class ProducerDemo {
                     log.error("Error while producing", e);
                 }
             }
-        });*/
-
-
+        });
+        
+        */
+        
         for (int i=0; i<10; i++ ) {
-
-            // create a producer record
-
-            String topic = "test_topic_with_partitions";
-            String value = "hello world " + Integer.toString(i);
-            String key = "id_" + Integer.toString(i);
-
-            ProducerRecord<String, String> producerRecord =
-                    new ProducerRecord<>(topic, key, value);
-
-            // send data - asynchronous
-            producer.send(producerRecord, new Callback() {
-                public void onCompletion(RecordMetadata recordMetadata, Exception e) {
-                    // executes every time a record is successfully sent or an exception is thrown
-                    if (e == null) {
+            
+        // create a producer record
+        
+        String topic = "test_topic_with_partitions";
+        String value = "hello world " + Integer.toString(i);
+        String key = "id_" + Integer.toString(i);
+        
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(topic, key, value);
+        
+        // send data - asynchronous
+        producer.send(producerRecord, new Callback() {
+            public void onCompletion(RecordMetadata recordMetadata, Exception e) {
+                // executes every time a record is successfully sent or an exception is thrown
+                if (e == null) {
                         // the record was successfully sent
                         log.info("Received new metadata. \n" +
                                 "Topic:" + recordMetadata.topic() + "\n" +
@@ -79,7 +79,7 @@ public class ProducerDemo {
                 }
             });
         }
-
+        
 
         
         // flush data - synchronous
