@@ -1,11 +1,11 @@
 {
     "name": "jdbc-postgresql-sink",
     "config": {
-        "connection.url": "jdbc:postgresql://kafka_streams_devcontainer-database-1:5432/project3?user=postgres&password=My01pass",
+        "connection.url": "jdbc:postgresql://kafka_projeto_devcontainer-database-1:5432/project3?user=postgres&password=My01pass",
         "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
         "dialect.name": "PostgreSqlDatabaseDialect",
         "tasks.max": "1",
-        "topics": "Example_topic",
+        "topics": "Results",
         "auto.create": "true",
         "insert.mode": "upsert",
         "pk.mode": "record_value",

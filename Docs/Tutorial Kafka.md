@@ -1,4 +1,4 @@
-```md
+```bash
 #!/bin/bash
 
 # This document holds some Kafka, Zookeeper and Postgres useful commands
@@ -133,7 +133,7 @@ kafka-topics.sh --bootstrap-server broker1:9092 --describe --topic test_topic_wi
 
 
 ### More commands or info
-
+(for streams, with different output topics)
 ```bash
 kafka-console-consumer.sh \
   --bootstrap-server kafka_streams_devcontainer-broker1-1:9092 \
@@ -143,7 +143,7 @@ kafka-console-consumer.sh \
   --property print.value=true \
   --property key.separator=":" \
   --property value.deserializer=org.apache.kafka.common.serialization.LongDeserializer
-(for streams, with different output topics)
+
 
 
 ```

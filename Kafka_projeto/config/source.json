@@ -1,15 +1,15 @@
 {
-    "name": "jdbc-source-suppliers-example",
+    "name": "jdbc-source-suppliers-dbinfo",
     "config": {
         "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
-        "connection.url": "jdbc:postgresql://kafka_streams_devcontainer-database-1:5432/project3",
+        "connection.url": "jdbc:postgresql://kafka_projeto_devcontainer-database-1:5432/project3",
         "connection.user": "postgres",
         "connection.password": "My01pass",  
         "dialect.name": "PostgreSqlDatabaseDialect",
         "mode": "bulk",
-        "query": "SELECT * FROM examples;",
+        "query": "SELECT id, name FROM suppliers;",
         "poll.interval.ms": "60000",
-        "topic.prefix": "project3fromDB",
+        "topic.prefix": "DBInfo",
         "value.converter": "org.apache.kafka.connect.storage.StringConverter"
     }
 }

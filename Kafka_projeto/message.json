@@ -1,0 +1,15 @@
+{
+    "schema": {
+        "type": "struct",
+        "fields": [
+            {"type": "int32", "optional": false, "field": "id"},
+            {"type": "string", "optional": false, "field": "metric_name"},
+            {"type": "float64", "optional": false, "field": "value"}
+        ]
+    },
+    "payload": {
+        "id": 1,
+        "metric_name": "total_passengers",
+        "value": 150.0
+    }
+}
