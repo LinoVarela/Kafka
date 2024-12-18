@@ -21,8 +21,8 @@ public class TripApp {
     public static void main(String[] args) {
         final String BOOTSTRAP_SERVER = "localhost:29092,localhost:29093,localhost:29094";
         final String GROUP_ID = "trip-consumer";
-        final String TRIP_TOPIC = "Trips";
-        final String RESULTS_TOPIC = "Results";
+        final String OUTPUT_TOPIC = "TRIP";
+        final String INPUT_TOPIC = "DBInfo";
 
         // Configurações para o consumidor de Trips
         Properties consumerProperties = new Properties();
@@ -43,7 +43,7 @@ public class TripApp {
         KafkaProducer<String, String> resultProducer = new KafkaProducer<>(producerProperties);
 
         // Subscribe consumidor para o tópico de Trips
-        tripConsumer.subscribe(Arrays.asList(TRIP_TOPIC));
+        tripConsumer.subscribe(Arrays.asList(INPUT_TOPIC));
 
         final Thread mainThread = Thread.currentThread();
 
@@ -73,7 +73,7 @@ public class TripApp {
                     String result = calculatePassengerCount(record.value());
 
                     // Enviar resultado para o tópico Results
-                    ProducerRecord<String, String> producerRecord = new ProducerRecord<>(RESULTS_TOPIC, "0", result);
+                    ProducerRecord<String, String> producerRecord = new ProducerRecord<>(OUTPUT_TOPIC, "0", result);
                     resultProducer.send(producerRecord);
                     resultProducer.flush();
                 }
