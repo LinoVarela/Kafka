@@ -9,7 +9,7 @@
         "auto.create": "true",
         "insert.mode": "upsert",
         "pk.mode": "record_value",
-        "pk.fields": "id",
+        "pk.fields": "routeId",
         "key.converter": "org.apache.kafka.connect.storage.StringConverter",
         "value.converter": "org.apache.kafka.connect.json.JsonConverter",
         "key.converter.schemas.enable": "true",

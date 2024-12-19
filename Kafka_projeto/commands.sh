@@ -43,3 +43,6 @@ psql -h postgres -p 5432 -U postgres # Login with user postgres
 \l               # List databases
 \c project3      # Connect to project3 database
 \dt              # List tables
+
+# delete topic
+kafka-topics.sh --bootstrap-server kafka_projeto_devcontainer-broker1-1:9092 --delete --topic Results

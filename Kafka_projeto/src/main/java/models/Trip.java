@@ -1,6 +1,5 @@
 package models;
 
-
 public class Trip {
     private String tripId;
     private String routeId;
@@ -9,7 +8,11 @@ public class Trip {
     private String passengerName;
     private String transportType;
 
-    public Trip(String tripId, String routeId, String origin, String destination, String passengerName, String transportType) {
+    public Trip() {}
+
+
+    public Trip(String tripId, String routeId, String origin, String destination,
+                String passengerName, String transportType) {
         this.tripId = tripId;
         this.routeId = routeId;
         this.origin = origin;
@@ -18,7 +21,7 @@ public class Trip {
         this.transportType = transportType;
     }
 
-    // Getters and Setters
+    // Getters e Setters
     public String getTripId() {
         return tripId;
     }

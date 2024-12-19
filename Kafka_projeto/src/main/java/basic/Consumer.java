@@ -1,3 +1,5 @@
+package basic;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
@@ -28,26 +30,21 @@ public class Consumer {
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-
         // create consumer
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
-    
+
         // subscribe consumer to our topic(s)
         consumer.subscribe(Arrays.asList(topic));
 
         // poll for new data
-        while(true){
-            ConsumerRecords<String, String> records =
-                    consumer.poll(Duration.ofMillis(100));
+        while (true) {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
 
-            for (ConsumerRecord<String, String> record : records){
+            for (ConsumerRecord<String, String> record : records) {
                 log.info("Key: " + record.key() + ", Value: " + record.value());
                 log.info("Partition: " + record.partition() + ", Offset:" + record.offset());
             }
         }
-
-
-
 
     }
 }

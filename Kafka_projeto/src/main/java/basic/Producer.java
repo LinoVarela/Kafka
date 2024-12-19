@@ -1,3 +1,5 @@
+package basic;
+
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -14,12 +16,13 @@ public class Producer {
         log.info("I am a Producer");
 
         String bootstrapServers = "kafka_projeto_devcontainer-broker1-1:9092";
-        String TOPIC = "Results"; // Enviar dados para o tópico 'Results'
+       // String TOPIC = "Results"; // Enviar dados para o tópico 'Results'
 
         // Criação das propriedades do produtor
         Properties properties = new Properties();
         properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        properties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+        properties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringSerializer");
         properties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "serializer.JSONSerializer");
 
         // Criando o produtor Kafka
@@ -28,14 +31,14 @@ public class Producer {
         // Criando dados de exemplo que irão para o tópico
 
         // Exemplo de rota
-        Route route = new Route("route-1", "Los Angeles", "New York", 200, "Bus", "XYZ Corp");
+        Route route = new Route("route-1", "Los Angeles", "New York", 200, "Bus", "XYZ Corp", "a");
 
         // Exemplo de viagem
         Trip trip = new Trip("trip-1", "route-1", "Los Angeles", "New York", "John Doe", "Bus");
 
         // Enviar os dados para o tópico 'Results'
-        sendMessage(producer, TOPIC, route);
-        sendMessage(producer, TOPIC, trip);
+        sendMessage(producer, "Routes", route);
+        sendMessage(producer, "Trips", trip);
 
         // Fechar o produtor
         producer.flush();

@@ -1,4 +1,3 @@
-
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -14,87 +13,95 @@ import serializer.JSONSerializer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class TripApp {
     private static final Logger log = LoggerFactory.getLogger(TripApp.class);
 
+    private static final AtomicInteger tripCounter = new AtomicInteger(1);
+
     public static void main(String[] args) {
-        final String BOOTSTRAP_SERVER = "localhost:29092,localhost:29093,localhost:29094";
-        final String GROUP_ID = "trip-consumer";
-        final String OUTPUT_TOPIC = "TRIP";
+        String bootstrapServers = "kafka_projeto_devcontainer-broker1-1:9092";
+        final String GROUP_ID = "my-fourth-application";
+        final String OUTPUT_TOPIC = "Trips";
         final String INPUT_TOPIC = "DBInfo";
 
-        // Configurações para o consumidor de Trips
+        // Configurações para o consumidor de DBInfo
         Properties consumerProperties = new Properties();
-        consumerProperties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVER);
-        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JSONDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                JSONDeserializer.class.getName());
         consumerProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         consumerProperties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        // Configurações para o produtor de Results
+        // Configurações para o produtor de Trips
         Properties producerProperties = new Properties();
-        producerProperties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVER);
+        producerProperties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         producerProperties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         producerProperties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JSONSerializer.class.getName());
 
         // Criando consumidor e produtor
         KafkaConsumer<String, Trip> tripConsumer = new KafkaConsumer<>(consumerProperties);
-        KafkaProducer<String, String> resultProducer = new KafkaProducer<>(producerProperties);
+        KafkaProducer<String, Trip> tripProducer = new KafkaProducer<>(producerProperties);
 
-        // Subscribe consumidor para o tópico de Trips
+        // Subscribe consumidor para o tópico de DBInfo
         tripConsumer.subscribe(Arrays.asList(INPUT_TOPIC));
 
         final Thread mainThread = Thread.currentThread();
 
         // Shutdown hook para fechar recursos adequadamente
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                log.info("Detected a shutdown, let's exit by calling consumer.wakeup()...");
-                tripConsumer.wakeup();
-
-                try {
-                    mainThread.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Detected a shutdown, let's exit by calling consumer.wakeup()...");
+            tripConsumer.wakeup();
+            try {
+                mainThread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
+        }));
 
         try {
-            // Processa as Trips
             while (true) {
+                // Consome mensagens do tópico DBInfo
                 ConsumerRecords<String, Trip> tripRecords = tripConsumer.poll(Duration.ofMillis(100));
 
                 for (ConsumerRecord<String, Trip> record : tripRecords) {
-                    log.debug("Received Trip: " + record.value());
+                    log.debug("Received Trip: {}", record.value());
 
-                    // Calcular número de passageiros para essa viagem (ou outro processamento necessário)
-                    String result = calculatePassengerCount(record.value());
+                    // Processar a mensagem e gerar ID único no formato `trip-1`, `trip-2`...
+                    Trip processedTrip = generateTripWithUniqueId(record.value());
 
-                    // Enviar resultado para o tópico Results
-                    ProducerRecord<String, String> producerRecord = new ProducerRecord<>(OUTPUT_TOPIC, "0", result);
-                    resultProducer.send(producerRecord);
-                    resultProducer.flush();
+                    // Produz para o tópico Trips
+                    ProducerRecord<String, Trip> producerRecord = new ProducerRecord<>(OUTPUT_TOPIC,
+                            processedTrip.getTripId(), processedTrip);
+                    tripProducer.send(producerRecord);
+                    log.debug("Produced Trip: {}", processedTrip);
+
+                    // Flush (opcional para garantia de envio imediato)
+                    tripProducer.flush();
                 }
             }
         } catch (WakeupException e) {
-            log.info("Wake up exception!");
-
+            log.info("Wake up exception triggered. Exiting gracefully...");
         } catch (Exception e) {
-            log.error("Unexpected exception", e);
-            e.printStackTrace();
-
+            log.error("Unexpected exception occurred", e);
         } finally {
             tripConsumer.close();
-            resultProducer.close();
+            tripProducer.close();
             log.info("Closed TripApp.");
         }
     }
 
-    // Método para calcular o número de passageiros
-    private static String calculatePassengerCount(Trip trip) {
-        // Exemplo de cálculo do número de passageiros
-        return String.format("TripId: %s,", trip.getTripId());
+    // Método para gerar Trips com IDs únicos no formato desejado
+    private static Trip generateTripWithUniqueId(Trip trip) {
+        return new Trip(
+                "trip-" + tripCounter.getAndIncrement(),
+                trip.getRouteId(),
+                trip.getOrigin(),
+                trip.getDestination(),
+                trip.getPassengerName(),
+                trip.getTransportType());
     }
 }

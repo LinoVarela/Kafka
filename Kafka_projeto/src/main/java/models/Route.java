@@ -9,7 +9,21 @@ public class Route {
     private String transportType;
     private String operator;
     private int passengerCount; 
+    private String supplierId; 
 
+    
+    public Route() {}
+
+    public Route(String routeId, String origin, String destination, int passengerCapacity, String transportType, String operator, String supplierId) {
+        this.routeId = routeId;
+        this.origin = origin;
+        this.destination = destination;
+        this.passengerCapacity = passengerCapacity;
+        this.transportType = transportType;
+        this.operator = operator;
+        this.supplierId = supplierId;
+    }
+    
     public int getPassengerCount() {
         return passengerCount;
     }
@@ -18,13 +32,12 @@ public class Route {
         this.passengerCount = passengerCount;
     }
 
-    public Route(String routeId, String origin, String destination, int passengerCapacity, String transportType, String operator) {
-        this.routeId = routeId;
-        this.origin = origin;
-        this.destination = destination;
-        this.passengerCapacity = passengerCapacity;
-        this.transportType = transportType;
-        this.operator = operator;
+    public String getSupplierId() {
+        return supplierId;
+    }
+
+    public void setSupplierId(String supplierId) {
+        this.supplierId = supplierId;
     }
 
     // Getters and Setters
