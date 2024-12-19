@@ -6,6 +6,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import models.Route;
+import models.Supplier;
 import models.Trip;
 import java.util.Properties;
 
@@ -16,7 +17,7 @@ public class Producer {
         log.info("I am a Producer");
 
         String bootstrapServers = "kafka_projeto_devcontainer-broker1-1:9092";
-       // String TOPIC = "Results"; // Enviar dados para o tópico 'Results'
+        // String TOPIC = "Results"; // Enviar dados para o tópico 'Results'
 
         // Criação das propriedades do produtor
         Properties properties = new Properties();
@@ -28,17 +29,20 @@ public class Producer {
         // Criando o produtor Kafka
         KafkaProducer<String, Object> producer = new KafkaProducer<>(properties);
 
+        
         // Criando dados de exemplo que irão para o tópico
-
-        // Exemplo de rota
-        Route route = new Route("route-1", "Los Angeles", "New York", 200, "Bus", "XYZ Corp", "a");
-
+        Supplier supplier = new Supplier("supplier-1", "lino", "portugal");
+        
+        // Exemplo de route
+        Route route = new Route("route-1", "Los Angeles", "New York", 200, "Bus", "XYZ Corp", "supplier-1", 50);
+        
         // Exemplo de viagem
         Trip trip = new Trip("trip-1", "route-1", "Los Angeles", "New York", "John Doe", "Bus");
 
         // Enviar os dados para o tópico 'Results'
-        sendMessage(producer, "Routes", route);
-        sendMessage(producer, "Trips", trip);
+        sendMessage(producer, "DBInfoTopic-Route", route);
+        sendMessage(producer, "DBInfoTopic-Trip", trip);
+        sendMessage(producer, "Suppliers", supplier);
 
         // Fechar o produtor
         producer.flush();

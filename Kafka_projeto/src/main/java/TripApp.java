@@ -6,6 +6,7 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import models.Supplier;
 import models.Trip;
 import serializer.JSONDeserializer;
 import serializer.JSONSerializer;
@@ -24,18 +25,18 @@ public class TripApp {
         String bootstrapServers = "kafka_projeto_devcontainer-broker1-1:9092";
         final String GROUP_ID = "my-fourth-application";
         final String OUTPUT_TOPIC = "Trips";
-        final String INPUT_TOPIC = "DBInfo";
+        final String INPUT_TOPIC = "DBInfoTopic-Trip";
 
         // Configurações para o consumidor de DBInfo
         Properties consumerProperties = new Properties();
         consumerProperties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class.getName());
-        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                JSONDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,StringDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,JSONDeserializer.class.getName());
         consumerProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         consumerProperties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        consumerProperties.put("JSONClass", Trip.class);
 
+        
         // Configurações para o produtor de Trips
         Properties producerProperties = new Properties();
         producerProperties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -66,8 +67,9 @@ public class TripApp {
             while (true) {
                 // Consome mensagens do tópico DBInfo
                 ConsumerRecords<String, Trip> tripRecords = tripConsumer.poll(Duration.ofMillis(100));
-
+                System.out.println("Here2");
                 for (ConsumerRecord<String, Trip> record : tripRecords) {
+                    System.out.println("Here3");
                     log.debug("Received Trip: {}", record.value());
 
                     // Processar a mensagem e gerar ID único no formato `trip-1`, `trip-2`...

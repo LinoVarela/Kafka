@@ -6,6 +6,10 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import models.Route;
 import models.Supplier;
 import serializer.JSONDeserializer;
@@ -42,24 +46,24 @@ public class RouteApp {
                 passengerCapacity,
                 transportTypes[(int) (Math.random() * transportTypes.length)],
                 operator,
-                supplierId);
+                supplierId, passengerCapacity);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws JsonMappingException, JsonProcessingException {
         String bootstrapServers = "kafka_projeto_devcontainer-broker1-1:9092";
-        final String groupId = "my-route-application";
-        final String INPUT_TOPIC = "DBInfo";
+        final String groupId = "my-fourth-application";
+        final String INPUT_TOPIC = "Suppliers";
         final String OUTPUT_TOPIC = "Routes";
 
         // Configurações do consumidor
         Properties consumerProperties = new Properties();
         consumerProperties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class.getName());
-        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                JSONDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,StringDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,JSONDeserializer.class.getName());
         consumerProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         consumerProperties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        consumerProperties.put("JSONClass", Supplier.class);
+
 
         // Configurações do produtor
         Properties producerProperties = new Properties();
@@ -90,13 +94,14 @@ public class RouteApp {
         try {
             while (true) {
                 ConsumerRecords<String, Supplier> records = consumer.poll(Duration.ofMillis(100));
+                log.info("Fetched {} records from topic: {}", records.count(), INPUT_TOPIC);
                 System.out.println("HERE2");
                 for (ConsumerRecord<String, Supplier> record : records) {
                     System.out.println("HERE 3");
                     log.debug("Received Supplier: {}", record.value());
 
                     // Gerar uma rota aleatória baseada no Supplier recebido
-                    Route randomRoute = generateRandomRoute(record.value().getSupplierId());
+                    Route randomRoute = generateRandomRoute(record.value().getId());
 
                     // Produzir a rota gerada no tópico Routes
                     ProducerRecord<String, Route> producerRecord = new ProducerRecord<>(OUTPUT_TOPIC,

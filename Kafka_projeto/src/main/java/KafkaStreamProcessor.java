@@ -28,6 +28,26 @@ public class KafkaStreamProcessor {
     private static final Logger log = LoggerFactory.getLogger(KafkaStreamProcessor.class);
 
     public static void main(String[] args) {
+
+        final String INPUT_TOPIC_ROUTES = "Routes";
+        final String INPUT_TOPIC_TRIPS = "Trips";
+        final String[] OUTPUT_TOPICS = {
+                "ResultsTopic-4", // Passengers per route
+                "ResultsTopic-5", // Available seats per route
+                "ResultsTopic-6", // Occupancy percentage per route
+                "ResultsTopic-7", // Total passengers
+                "ResultsTopic-8", // Total available seating
+                "ResultsTopic-9",
+                "ResultsTopic-10",
+                "ResultsTopic-11",
+                "ResultsTopic-12",
+                "ResultsTopic-13",
+                "ResultsTopic-14",
+                "ResultsTopic-15",
+                "ResultsTopic-16",
+                "ResultsTopic-17"
+        };
+
         // Configuração do Kafka Streams
         Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "kafka-stream-processor");
@@ -54,82 +74,142 @@ public class KafkaStreamProcessor {
         serdePropertiesTrip.put("JSONClass", Trip.class);
         jsonSerdeTrip.configure(serdePropertiesTrip, false);
 
+        System.out.println("SETUP DONE");
+        log.debug("HERE");
+
         // Consumindo dados de "Routes" para criar uma tabela
         KStream<String, Route> routeLines = builder.stream("Routes", Consumed.with(Serdes.String(), jsonSerdeRoute))
-            .mapValues(v -> {
-                log.debug("Consuming route: " + v);
-                return v; // pode incluir transformação aqui se necessário
-            })
-            .groupBy((key, value) -> value.getRouteId(), Grouped.with(Serdes.String(), jsonSerdeRoute))
-            .aggregate(
-                () -> null, // valor inicial
-                (aggKey, newValue, aggValue) -> newValue, // lógica de agregação
-                Materialized.with(Serdes.String(), jsonSerdeRoute)
-            )
-            .toStream();
+                .mapValues(v -> {
+                    log.debug("Consuming route: " + v);
+                    return v; 
+                })
+                .groupBy((key, value) -> value.getRouteId(), Grouped.with(Serdes.String(), jsonSerdeRoute))
+                .aggregate(
+                        () -> null, // valor inicial
+                        (aggKey, newValue, aggValue) -> newValue, // lógica de agregação
+                        Materialized.with(Serdes.String(), jsonSerdeRoute))
+                .toStream();
 
         routeLines.peek((k, v) -> log.debug("Route Aggregated: " + v));
 
         // Consumindo dados de "Trips" para criar uma tabela
         KStream<String, Trip> tripLines = builder.stream("Trips", Consumed.with(Serdes.String(), jsonSerdeTrip))
-            .mapValues(v -> {
-                log.debug("Consuming trip: " + v);
-                return v; // pode incluir transformação aqui se necessário
-            })
-            .groupBy((key, value) -> value.getRouteId(), Grouped.with(Serdes.String(), jsonSerdeTrip))
-            .aggregate(
-                () -> null, // valor inicial
-                (aggKey, newValue, aggValue) -> newValue, // lógica de agregação
-                Materialized.with(Serdes.String(), jsonSerdeTrip)
-            )
-            .toStream();
+                .mapValues(v -> {
+                    log.debug("Consuming trip: " + v);
+                    return v; 
+                })
+                .groupBy((key, value) -> value.getRouteId(), Grouped.with(Serdes.String(), jsonSerdeTrip))
+                .aggregate(
+                        () -> null, // valor inicial
+                        (aggKey, newValue, aggValue) -> newValue, // lógica de agregação
+                        Materialized.with(Serdes.String(), jsonSerdeTrip))
+                .toStream();
 
         tripLines.peek((k, v) -> log.debug("Trip Aggregated: " + v));
 
-        // Juntando os dados de Route e Trip para criar uma transação
+        // Juntando os dados de Route e Trip para criar resultdao
         KStream<String, Result> joinedStream = routeLines.join(
-            tripLines,
-            (route, trip) -> new Result(route, trip),
-            JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5)),
-            StreamJoined.with(Serdes.String(), jsonSerdeRoute, jsonSerdeTrip))
-            .peek((key, value) -> log.debug("New Result'" + value.getRoute()));
+                tripLines,
+                (route, trip) -> new Result(route, trip),
+                JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5)),
+                StreamJoined.with(Serdes.String(), jsonSerdeRoute, jsonSerdeTrip))
+                .peek((key, value) -> log.debug("New Result'" + value.getRoute()));
 
-        joinedStream.peek((key, value) -> log.debug("Transaction created: " + value));
+        joinedStream.peek((key, value) -> log.debug("Resultado created: " + value));
 
-        // Enviar dados para o tópico "Results" no formato esperado pelo JDBC Sink Connector
+
+
+
+
+
+        // REQUISITOS 
+
+        //5. Get the available seats per route
         joinedStream
-            .mapValues((key, value) -> {
-                // Serializando para o formato correto para o JDBC Sink Connector
-                return String.format(
-                    "{\"schema\":{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"optional\":false,\"field\":\"routeId\"}," +
-                    "{\"type\":\"string\",\"optional\":false,\"field\":\"origin\"}," +
-                    "{\"type\":\"string\",\"optional\":false,\"field\":\"destination\"}," +
-                    "{\"type\":\"int32\",\"optional\":false,\"field\":\"passengerCapacity\"}," +
-                    "{\"type\":\"string\",\"optional\":false,\"field\":\"transportType\"}," +
-                    "{\"type\":\"string\",\"optional\":false,\"field\":\"operator\"}," +
-                    "{\"type\":\"string\",\"optional\":false,\"field\":\"tripId\"}," +
-                    "{\"type\":\"string\",\"optional\":false,\"field\":\"passengerName\"}]}," +
-                    "\"payload\":{\"routeId\":\"%s\",\"origin\":\"%s\",\"destination\":\"%s\",\"passengerCapacity\":%d," +
-                    "\"transportType\":\"%s\",\"operator\":\"%s\",\"tripId\":\"%s\",\"passengerName\":\"%s\"}}",
-                    value.getRoute().getRouteId(),
-                    value.getRoute().getOrigin(),
-                    value.getRoute().getDestination(),
-                    value.getRoute().getPassengerCapacity(),
-                    value.getRoute().getTransportType(),
-                    value.getRoute().getOperator(),
-                    value.getTrip().getTripId(),
-                    value.getTrip().getPassengerName()
-                );
-            })
-            .to("Results", Produced.with(Serdes.String(), Serdes.String()));
+        .mapValues((key, result) -> {
+                int availableSeats = result.getRoute().getPassengerCapacity() - result.getRoute().getPassengerCount();
+                return String.format("{\"routeId\":\"%s\",\"availableSeatsss\":%d}",
+                        result.getRoute().getRouteId(), availableSeats);
+        })
+        .to(OUTPUT_TOPICS[1], Produced.with(Serdes.String(), Serdes.String())); // Enviar para "ResultsTopic-5"
 
+
+
+        /* 
+         * 
+         // Processando e enviando para múltiplos tópicos de resultados
+         joinedStream
+         .mapValues((key, result) -> {
+                    // Exemplo de processamento e formatação para ocupação
+                    String resultData = String.format(
+                            "{\"routeId\":\"%s\",\"occupancyPercentage\":%.2f}",
+                            result.getRoute().getRouteId(),
+                            (double) result.getRoute().getPassengerCount() / result.getRoute().getPassengerCapacity()
+                            * 100);
+                    return resultData;
+                })
+                .to(OUTPUT_TOPICS[2], Produced.with(Serdes.String(), Serdes.String())); // Enviar para o
+                // "ResultsTopic-6"
+                
+                // Enviar total de passageiros para um tópico separado
+                joinedStream
+                .mapValues((key, result) -> {
+                        // Exemplo de total de passageiros por rota
+                        return String.format("{\"routeId\":\"%s\",\"totalPassengers\":%d}",
+                        result.getRoute().getRouteId(), result.getTrip().getPassengerName());
+                })
+                .to(OUTPUT_TOPICS[3], Produced.with(Serdes.String(), Serdes.String())); // Enviar para o
+                // "ResultsTopic-7"
+                
+                // Enviar a capacidade total de assentos
+                joinedStream
+                .mapValues((key, result) -> {
+                        // Exemplo de capacidade total de assentos
+                        return String.format("{\"routeId\":\"%s\",\"totalSeats\":%d}",
+                        result.getRoute().getRouteId(), result.getRoute().getPassengerCapacity());
+                })
+                .to(OUTPUT_TOPICS[4], Produced.with(Serdes.String(), Serdes.String())); // Enviar para o
+                // "ResultsTopic-8"
+                
+                /*
+                */
+                // Enviar dados para o tópico "Results" no formato esperado pelo JDBC Sink
+        // Connector
+        joinedStream
+        .mapValues((key, value) -> {
+        // Serializando para o formato correto para o JDBC Sink Connector
+        return String.format(
+        "{\"schema\":{\"type\":\"struct\",\"fields\":[{\"type\":\"string\",\"optional\":false,\"field\":\"routeId\"},"
+        +
+        "{\"type\":\"string\",\"optional\":false,\"field\":\"origin\"}," +
+        "{\"type\":\"string\",\"optional\":false,\"field\":\"destination\"}," +
+        "{\"type\":\"int32\",\"optional\":false,\"field\":\"passengerCapacity\"}," +
+        "{\"type\":\"string\",\"optional\":false,\"field\":\"transportType\"}," +
+        "{\"type\":\"string\",\"optional\":false,\"field\":\"operator\"}," +
+        "{\"type\":\"string\",\"optional\":false,\"field\":\"tripId\"}," +
+        "{\"type\":\"string\",\"optional\":false,\"field\":\"passengerName\"}]}," +
+        "\"payload\":{\"routeId\":\"%s\",\"origin\":\"%s\",\"destination\":\"%s\",\"passengerCapacity\":%d,"
+        +
+        "\"transportType\":\"%s\",\"operator\":\"%s\",\"tripId\":\"%s\",\"passengerName\":\"%s\"}}",
+        value.getRoute().getRouteId(),
+        value.getRoute().getOrigin(),
+        value.getRoute().getDestination(),
+        value.getRoute().getPassengerCapacity(),
+        value.getRoute().getTransportType(),
+        value.getRoute().getOperator(),
+        value.getTrip().getTripId(),
+        value.getTrip().getPassengerName());
+        })
+        .to("Results", Produced.with(Serdes.String(), Serdes.String()));
+        
+        
         // Inicializar o KafkaStreams
         KafkaStreams streams = new KafkaStreams(builder.build(), streamsConfiguration);
-
+        
         // Iniciar o Kafka Streams
         streams.start();
-
+        
         // Adicionar um hook para garantir que o Kafka Streams seja fechado corretamente
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-    }
+}
 }

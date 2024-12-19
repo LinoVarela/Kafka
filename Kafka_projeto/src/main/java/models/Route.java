@@ -1,20 +1,20 @@
 package models;
 
-
 public class Route {
     private String routeId;
     private String origin;
     private String destination;
     private int passengerCapacity;
+    private int passengerCount;
     private String transportType;
     private String operator;
-    private int passengerCount; 
-    private String supplierId; 
+    private String supplierId;
 
-    
-    public Route() {}
+    public Route() {
+    }
 
-    public Route(String routeId, String origin, String destination, int passengerCapacity, String transportType, String operator, String supplierId) {
+    public Route(String routeId, String origin, String destination, int passengerCapacity, String transportType,
+            String operator, String supplierId, int passengerCount) {
         this.routeId = routeId;
         this.origin = origin;
         this.destination = destination;
@@ -22,8 +22,9 @@ public class Route {
         this.transportType = transportType;
         this.operator = operator;
         this.supplierId = supplierId;
+        this.passengerCount = passengerCount;
     }
-    
+
     public int getPassengerCount() {
         return passengerCount;
     }

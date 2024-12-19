@@ -1,22 +1,41 @@
 package models;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.*;
 
-@NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class Supplier {
-    @JsonProperty("id")
-    private String supplierId;
+    private String id;
+    private String nome;
+    private String localizacao;
 
-    @JsonProperty("nome")
-    private String name;
+    // Construtores, getters e setters
+    public Supplier() {}
 
-    @JsonProperty("localizacao")
-    private String location;
+    public Supplier(String id, String nome, String localizacao) {
+        this.id = id;
+        this.nome = nome;
+        this.localizacao = localizacao;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getLocalizacao() {
+        return localizacao;
+    }
+
+    public void setLocalizacao(String localizacao) {
+        this.localizacao = localizacao;
+    }
 }
