@@ -336,82 +336,75 @@ public class KafkaStream {
              
              
                 // 11. Get the transport type with the highest number of served passengers (only one if there is a tie)
-                joinedStream
-                .map((key, result) -> new KeyValue<>(result.getRoute().getTransportType(),
-                        result.getRoute().getPassengerCount())) // Mapeia para o tipo de transporte e número de passageiros
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupa por tipo de transporte e soma os passageiros
+                KStream<String, Result> transportTypeMostPassengers = joinedStream;
+                transportTypeMostPassengers
+                .map((key, result) -> new KeyValue<>(result.getRoute().getTransportType(), result.getRoute().getPassengerCount()))
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupa por tipo de transporte
                 .aggregate(
-                        // Função de inicialização: inicializa com 0 passageiros
-                        () -> 0L,
-                        // Função de agregação: soma os passageiros
-                        (key, value, aggregate) -> aggregate + value,
-                        // Materialização com os Serdes apropriados
+                        () -> 0L, 
+                        //agregar soma dos passageiros por tipo de transporte
+                        (key, value, aggregate) -> aggregate + value, 
                         Materialized.with(Serdes.String(), Serdes.Long()))
-                .toStream() // Converte de volta para KStream
-                .map((key, totalPassengers) -> new KeyValue<>(key,
-                        new KeyValue<>(key, totalPassengers))) // Mapeia para KeyValue com transporte e total de passageiros
+                .toStream()
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
+                .reduce(
+                        (total1, total2) -> total1 > total2 ? total1 : total2, // comparar os totais de passageiros e manter o maior
+                        Materialized.with(Serdes.String(), Serdes.Long()))
+                .toStream()
                 .mapValues((key, totalPassengers) -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"routeId\", \"type\": \"string\"}, {\"field\": \"transportType\", \"type\": \"string\"}, {\"field\": \"totalPassengers\", \"type\": \"long\"}]}, "
-                        +
-                        "\"payload\": {\"routeId\": \"%s\", \"transportType\": \"%s\", \"totalPassengers\": %d}}",
-                        "route", key, totalPassengers // Adiciona o tipo de transporte e número máximo de passageiros
+                        + "\"payload\": {\"routeId\": \"%s\", \"transportType\": \"%s\", \"totalPassengers\": %d}}",
+                        key, key, totalPassengers 
                 ))
                 .to(OUTPUT_TOPICS[7], Produced.with(Serdes.String(), Serdes.String())); // Envia para "ResultsTopic-11"
 
 
-                // 12. Get the routes with the least occupancy per transport type
-                joinedStream
-                // Mapear para (Tipo de Transporte, Ocupação), onde a ocupação é o número de passageiros na rota
+                // 12. Get the routes with the least occupancy per transport type (obter a rota com menos ocupacao?)
+       /* KStream<String, Result> routesLeastOccupancyTransportType = joinedStream;
+                routesLeastOccupancyTransportType
                 .map((key, result) -> new KeyValue<>(result.getRoute().getTransportType(), result.getRoute().getPassengerCount()))
-                // Agrupar por tipo de transporte para somar a ocupação e identificar a menor
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupar por tipo de transporte e número de passageiros
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer()))
                 .aggregate(
-                        // Função de inicialização: começa com Integer.MAX_VALUE (um valor alto para encontrar o mínimo)
+                        //Valor "infinito" para comparar
                         () -> Integer.MAX_VALUE,
-                        // Função de agregação: compara as ocupações e retorna a menor
+                        // Compara as ocupações e retorna a menor
                         (key, value, agg) -> Math.min(agg, value),
-                        Materialized.with(Serdes.String(), Serdes.Integer()) // Armazenar com chave String (tipo de transporte) e valor Integer (ocupação)
+                        Materialized.with(Serdes.String(), Serdes.Integer())
                 )
-                // Transformando de volta para KStream para análise posterior
                 .toStream()
-                // Após a agregação, podemos aplicar a lógica para encontrar a rota com menor ocupação
                 .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupar novamente por tipo de transporte
                 .reduce(
-                        // Função de agregação para comparar as ocupações e retornar a menor
-                        (agg1, agg2) -> agg1 < agg2 ? agg1 : agg2, // Comparar e retornar a menor ocupação
-                        Materialized.with(Serdes.String(), Serdes.Integer()) // Materializar o resultado com chave String e valor Integer
+                        (agg1, agg2) -> agg1 < agg2 ? agg1 : agg2, // comparar e obter a menor ocupação
+                        Materialized.with(Serdes.String(), Serdes.Integer())
                 )
-                .toStream()  // Convertendo de volta para KStream para a formatação final
-                // Usar mapValues para transformar o valor (ocupação) sem modificar a chave
+                .toStream() 
                 .mapValues((key, totalOccupancy) -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"transportType\", \"type\": \"string\"}, {\"field\": \"occupancy\", \"type\": \"integer\"}]}, "
                         + "\"payload\": {\"transportType\": \"%s\", \"occupancy\": %d}}",
                         key, totalOccupancy // Tipo de transporte e a ocupação mínima
                 ))
-                .to(OUTPUT_TOPICS[12], Produced.with(Serdes.String(), Serdes.String()));  // Envia para o tópico de saída
+                .to(OUTPUT_TOPICS[8], Produced.with(Serdes.String(), Serdes.String()));  // Envia para o tópico de saída
+     */
 
-     
                 // 13. Get the most used transport type in the last hour (using a tumbling time window)
-                Duration windowDuration = Duration.ofSeconds(30); // Definindo o tamanho da janela para 30 segundos
 
-                joinedStream
+                Duration windowDuration = Duration.ofSeconds(30);
+                KStream<String, Result> transportTypeLastHour= joinedStream;
+                transportTypeLastHour
                 .map((key, result) -> new KeyValue<>(result.getRoute().getTransportType(),
-                        result.getRoute().getPassengerCount())) // Mapeia para tipo de transporte e número de passageiros
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupa por tipo de transporte
-                .windowedBy(TimeWindows.ofSizeWithNoGrace(windowDuration)) // Aplica a janela tumbling de 30 segundos
+                        result.getRoute().getPassengerCount()))
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer()))
+                .windowedBy(TimeWindows.ofSizeWithNoGrace(windowDuration)) // aplica a janela tumbling
                 .aggregate(
-                        // Função de inicialização: começa com 0 passageiros
                         () -> 0,
-                        // Função de agregação: soma os passageiros
                         (key, value, aggregate) -> aggregate + value,
-                        Materialized.with(Serdes.String(), Serdes.Integer()) // Tipos para chave e valor
+                        Materialized.with(Serdes.String(), Serdes.Integer()) 
                 )
                 .toStream()
-                .map((windowedKey, totalPassengers) -> new KeyValue<>(windowedKey.key(), totalPassengers)) // Mapeia para KeyValue com tipo de transporte e total de passageiros
-                .groupByKey() // Agrupa todos os resultados por chave para determinar o transporte mais utilizado
+                .map((windowedKey, totalPassengers) -> new KeyValue<>(windowedKey.key(), totalPassengers)) 
+                .groupByKey() 
                 .reduce(
-                        // Função de agregação para encontrar o transporte com o maior número de passageiros
-                        (total1, total2) -> total1 > total2 ? total1 : total2, // Retorna o maior número de passageiros
+                        (total1, total2) -> total1 > total2 ? total1 : total2, // obter o maior número de passageiros
                         Materialized.with(Serdes.String(), Serdes.Integer())
                 )
                 .toStream()
@@ -425,104 +418,90 @@ public class KafkaStream {
                 
                 // 14. Least occupied transport type in the last hour (using a tumbling time window)
                 windowDuration = Duration.ofHours(1); // janela de 1 hora
-
-                joinedStream
+                //MUITO SEMELHANTE AO ANTERIOR
+                KStream<String, Result> leastOccupiedTransport= joinedStream;
+                leastOccupiedTransport
                         .map((key, result) -> new KeyValue<>(result.getRoute().getTransportType(),
-                                result.getRoute().getPassengerCount())) // Map transport type to passenger count
-                        .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Group by transport type
-                        .windowedBy(TimeWindows.ofSizeWithNoGrace(windowDuration)) // Define a tumbling window  // of 1 hour                                              
+                                result.getRoute().getPassengerCount()))
+                        .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) 
+                        .windowedBy(TimeWindows.ofSizeWithNoGrace(windowDuration))                                              
                         .aggregate(
                                 // Inicializar a 0
                                 () -> 0,
-                                // Aggregation function: sum the passenger counts
                                 (key, value, aggregate) -> aggregate + value,
                                 Materialized.with(Serdes.String(), Serdes.Integer())
                         )
-                        .toStream() // Convert to a regular stream after aggregation
+                        .toStream()
                         .map((windowedKey, totalPassengers) -> new KeyValue<>(windowedKey.key(),
-                                        totalPassengers)) // Map windowed keys to regular keys (String)
-                        .groupByKey() // Group by transport type (key)
+                                        totalPassengers))
+                        .groupByKey()
                         .reduce(
-                                (total1, total2) -> total1 < total2 ? total1 : total2, // manter valor mais alto
+                                (total1, total2) -> total1 < total2 ? total1 : total2,
                                 Materialized.with(Serdes.String(), Serdes.Integer()) 
                         )
-                        .toStream() // Convert back to KStream after reduction
+                        .toStream()
                         .mapValues((key, totalPassengers) -> String.format(
                                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"routeId\", \"type\": \"string\"}, {\"field\": \"transportType\", \"type\": \"string\"}, {\"field\": \"totalPassengers\", \"type\": \"integer\"}]}, "
                                                         + "\"payload\": {\"routeId\": \"%s\", \"transportType\": \"%s\", \"totalPassengers\": %d}}",
                                         key, key, totalPassengers)) // Format as JSON
-                        .to(OUTPUT_TOPICS[10], Produced.with(Serdes.String(), Serdes.String())); // Send to
-                                                                                                        // "ResultsTopic-14"
+                        .to(OUTPUT_TOPICS[10], Produced.with(Serdes.String(), Serdes.String()));
 
 
                 // 15. Route Operator Name with most Occupancy
-                joinedStream
-                // Mapear para (Operador, Ocupação), onde a ocupação é o número de passageiros na rota
+                KStream<String, Result> routeOperatorNameOccupancy= joinedStream;
+                routeOperatorNameOccupancy
                 .map((key, result) -> new KeyValue<>(result.getRoute().getOperator(), result.getRoute().getPassengerCount()))
-                // Agrupar por operador para somar a ocupação
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupar por operador e número de passageiros
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) 
                 .aggregate(
-                        // Função de inicialização: começa com 0
                         () -> 0,
-                        // Função de agregação: soma os passageiros para cada operador
                         (key, value, agg) -> agg + value,
-                        Materialized.with(Serdes.String(), Serdes.Integer()) // Armazenar com chave String e valor Integer
+                        Materialized.with(Serdes.String(), Serdes.Integer()) 
                 )
-                // Transformando a KTable resultante de volta em KStream para o próximo passo
                 .toStream()
-                // Após a agregação, podemos aplicar a lógica para encontrar o operador com maior ocupação
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupar por operador novamente
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) 
                 .reduce(
-                        // Função de agregação para comparar as ocupações e retornar o maior
-                        (agg1, agg2) -> agg1 > agg2 ? agg1 : agg2, // Comparar e retornar o maior valor
-                        Materialized.with(Serdes.String(), Serdes.Integer()) // Materializar com chave String e valor Integer
+                        (agg1, agg2) -> agg1 > agg2 ? agg1 : agg2, // comparar e retornar o maior valor
+                        Materialized.with(Serdes.String(), Serdes.Integer())  
                 )
-                // Transformar novamente para o KStream para formatação e saída
                 .toStream()
-                // Usar mapValues para transformar o valor (occupancy) sem modificar a chave
                 .mapValues((key, totalOccupancy) -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"operator\", \"type\": \"string\"}, {\"field\": \"occupancy\", \"type\": \"integer\"}, {\"field\": \"routeId\", \"type\": \"string\"}]}, "
                         + "\"payload\": {\"operator\": \"%s\", \"occupancy\": %d, \"routeId\": \"%s\"}}",
-                        key, totalOccupancy, "routeId" // Operador, ocupação e routeId (modificar conforme necessário)
+                        key, totalOccupancy, "routeId" 
                 ))
-                .to(OUTPUT_TOPICS[11], Produced.with(Serdes.String(), Serdes.String())); // Enviar para o tópico de saída
+                .to(OUTPUT_TOPICS[11], Produced.with(Serdes.String(), Serdes.String())); 
 
 
 
                 // 16. Get the name of the passenger with the most trips
                 joinedStream
-                // Mapear para (Passageiro, 1), onde 1 representa uma viagem do passageiro
                 .map((key, result) -> new KeyValue<>(result.getTrip().getPassengerName(), 1))
                 // Agrupar por nome do passageiro para contar as viagens
                 .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer()))
                 .aggregate(
-                        // Função de inicialização: começa com 0
+
                         () -> 0,
-                        // Função de agregação: soma 1 a cada nova viagem
+                        //soma 1 a cada nova viagem
                         (key, value, aggregated) -> aggregated + value,
-                        Materialized.with(Serdes.String(), Serdes.Integer()) // Armazenar com chave String (nome do passageiro) e valor Integer (contagem de viagens)
+                        Materialized.with(Serdes.String(), Serdes.Integer()) // chave nome do passageiro e valor Integer contagem de viagens
                 )
-                // Transformar de volta para KStream para análise posterior
                 .toStream()
-                // Após a agregação, podemos aplicar a lógica para encontrar o passageiro com mais viagens
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // Agrupar por nome do passageiro novamente
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Integer())) // agrupar por nome do passageiro novamente
                 .reduce(
-                        // Função de agregação para comparar as viagens e retornar o maior
-                        (agg1, agg2) -> agg1 > agg2 ? agg1 : agg2, // Comparar e retornar o maior valor de viagens
+                        (agg1, agg2) -> agg1 > agg2 ? agg1 : agg2, // comparar e retornar o maior valor de viagens
                         Materialized.with(Serdes.String(), Serdes.Integer()) // Materializar o resultado com chave String e valor Integer
                 )
-                .toStream()  // Convertendo de volta para KStream para a formatação final
-                // Usar mapValues para transformar o valor (total de viagens) sem modificar a chave
+                .toStream() 
                 .mapValues((key, totalTrips) -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"passenger\", \"type\": \"string\"}, {\"field\": \"tripCount\", \"type\": \"integer\"}, {\"field\": \"routeId\", \"type\": \"string\"}]}, "
                         + "\"payload\": {\"passenger\": \"%s\", \"tripCount\": %d, \"routeId\": \"%s\"}}",
-                        key, totalTrips, "routeId" // Passageiro, número total de viagens e o routeId (modificar conforme necessário)
+                        key, totalTrips, "routeId"
                 ))
-                .to(OUTPUT_TOPICS[12], Produced.with(Serdes.String(), Serdes.String()));  // Envia para o tópico de saída
+                .to(OUTPUT_TOPICS[12], Produced.with(Serdes.String(), Serdes.String())); 
 
 
                 /*
-                 * 
+                 * TESTE PARA  VER TABELA DO JOINEDSTREAM
                  * joinedStream
                  * .mapValues((key, value) -> {
                  * // Serializando para o formato correto para o JDBC Sink Connector
