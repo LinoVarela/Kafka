@@ -6,18 +6,18 @@ Utilizam-se kafka streams para computar diferentes métricas
 
 ### Topicos utilizados
 
-Suppliers - Topido que tem dados relativos aos suppliers  
+Suppliers - Topico que tem dados relativos aos suppliers  
 DBInfoTopic-Routes - topico que tem dados relativos às routes todas obtidas da BD  
 DBInfoTopic-Trips - topico que tem dados relativos às trips todas obtidas da BD  
 Routes - topico que processa routes e gera mais routes (RouterApp) a partir de suppliers  
 Trips -  topico que processa routes e gera mais trips  
-ResultsTopic-(1 a 17) - topicos com os resultados das kafkaStreams (sao guardados na DB)  
+ResultsTopic-(4 a 16) - topicos com os resultados das kafkaStreams (sao guardados na DB)  
 
 ### Funcionamento
 
 RouteApp e TripApp geram novos dados quando lêem dados dos topicos das base de dados
 - a RouteApp cria uma nova route quando se recebe um novo supplier no topico "Suppliers" e insere no topico "Routes"
-- a TripApp cira uma nova trip quando se recebe uma nova trip no topico "DBInfoTopic-Trips" e insere no topico "Trips"
+- a TripApp cria uma nova trip quando se recebe uma nova trip no topico "DBInfoTopic-Trips" e insere no topico "Trips"
 (Estas configs podem-se mudar facilmente mas para testar é mais simples)
 
 Temos um producer que cria uma route, trip e supplier para os topicos da base de dados para ver estas aplicaçoes a funcionar

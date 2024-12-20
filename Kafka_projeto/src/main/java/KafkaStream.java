@@ -6,7 +6,6 @@ import org.apache.kafka.streams.kstream.JoinWindows;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.*;
 
 import java.util.ArrayList;
@@ -22,7 +21,6 @@ import java.time.Duration;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.StreamJoined;
 import org.apache.kafka.streams.kstream.TimeWindows;
-import org.apache.kafka.streams.state.KeyValueStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -254,20 +252,18 @@ public class KafkaStream {
 
                 // 8. Get total seating available for all routes (calculando a partir das trips)
                 KStream<String, Result> totalAvailableSeats = joinedStream;
+
                 totalAvailableSeats
                 .mapValues((key, result) -> {
-                        long availableSeats = result.getRoute().getPassengerCapacity() - result.getRoute().getPassengerCount();                        
+                        long availableSeats = result.getRoute().getPassengerCapacity() - result.getRoute().getPassengerCount();
                         return availableSeats;
                 })
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
-                // agregar para somar os assentos disponíveis
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long())) // Agrupa por routeId (String) e valores Long (assentos disponíveis)
                 .reduce(
-                        (seats1, seats2) -> seats1 + seats2, // Soma de assentos disponíveis por rota
-                        Materialized.<String, Long, KeyValueStore<Bytes, byte[]>>as("total-seats-store") 
-                        .withKeySerde(Serdes.String()) //  (routeId)
-                        .withValueSerde(Serdes.Long()) //  (assentos disponiveis)
+                        (seats1, seats2) -> seats1 + seats2, // Soma os assentos disponíveis por rota
+                        Materialized.with(Serdes.String(), Serdes.Long()) // Usando Materialized com Serdes configurados
                 )
-                .toStream() 
+                .toStream()
                 .mapValues(totalSeats -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [" +
                         "{\"field\": \"routeId\", \"type\": \"string\"}, " +
@@ -280,26 +276,25 @@ public class KafkaStream {
                         Produced.with(Serdes.String(), Serdes.String()) // Enviar para "ResultsTopic-8"
                 );
 
-
-
                 // 9. Get total occupancy percentage (routes)
                 KStream<String, Result> occupancyPercentageRoutes = joinedStream;
+
                 occupancyPercentageRoutes
                 .map((key, result) -> new KeyValue<>(key,
                         (float) result.getRoute().getPassengerCount() / result.getRoute().getPassengerCapacity() * 100)) // Calcula a ocupação de cada rota em %
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Float())) // agrupa por routeId
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Float())) // Agrupa por routeId (String) e valores Float (ocupação)
                 .reduce(
-                        (occupancy1, occupancy2) -> occupancy1 + occupancy2, // soma as porcentagens de todas as rotas
-                        Materialized.<String, Float, KeyValueStore<Bytes, byte[]>>as("total-occupancy-store")
-                        .withKeySerde(Serdes.String())
-                        .withValueSerde(Serdes.Float()) // Usamos float para a ocupação em %
+                        (occupancy1, occupancy2) -> occupancy1 + occupancy2, // Soma as porcentagens de ocupação
+                        Materialized.with(Serdes.String(), Serdes.Float()) // Usando Materialized com Serdes configurados
                 )
                 .toStream()
                 .mapValues(totalOccupancy -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"routeId\", \"type\": \"string\"}, {\"field\": \"totalOccupancyPercentage\", \"type\": \"float\"}]}, "
                         + "\"payload\": {\"routeId\": \"%s\", \"totalOccupancyPercentage\": %.2f}}", totalOccupancy))
-                .to(OUTPUT_TOPICS[5], Produced.with(Serdes.String(), Serdes.String())); // Enviar para "ResultsTopic-9"
-
+                .to(
+                        OUTPUT_TOPICS[5],
+                        Produced.with(Serdes.String(), Serdes.String()) // Enviar para "ResultsTopic-9"
+                );
 
 
                  // 10. Get the average number of passengers per transport type
