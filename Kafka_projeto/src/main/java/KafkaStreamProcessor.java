@@ -4,6 +4,7 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Grouped;
 import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsConfig;
@@ -52,10 +53,12 @@ public class KafkaStreamProcessor {
         Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "kafka-stream-processor");
         streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka_projeto_devcontainer-broker1-1:9092");
-
+        streamsConfiguration.put(StreamsConfig.consumerPrefix(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG), "earliest");
+                
         // Configuração do StreamsBuilder
         StreamsBuilder builder = new StreamsBuilder();
-        System.out.println("Iniciando Kafka Streams");
+        log.info("Starting Kafka Streams application");
+        log.debug("Setup done for Kafka Serdes and Streams");
 
         // Configuração dos Serializers e Deserializers (com JSON)
         final JSONDeserializer<Route> jsonDeserializerRoute = new JSONDeserializer<>();
@@ -74,11 +77,11 @@ public class KafkaStreamProcessor {
         serdePropertiesTrip.put("JSONClass", Trip.class);
         jsonSerdeTrip.configure(serdePropertiesTrip, false);
 
-        System.out.println("SETUP DONE");
-        log.debug("HERE");
+
+        log.debug("Setup done for Kafka Serdes and Streams");
 
         // Consumindo dados de "Routes" para criar uma tabela
-        KStream<String, Route> routeLines = builder.stream("Routes", Consumed.with(Serdes.String(), jsonSerdeRoute))
+        KStream<String, Route> routeLines = builder.stream(INPUT_TOPIC_ROUTES, Consumed.with(Serdes.String(), jsonSerdeRoute))
                 .mapValues(v -> {
                     log.debug("Consuming route: " + v);
                     return v; 
@@ -93,7 +96,7 @@ public class KafkaStreamProcessor {
         routeLines.peek((k, v) -> log.debug("Route Aggregated: " + v));
 
         // Consumindo dados de "Trips" para criar uma tabela
-        KStream<String, Trip> tripLines = builder.stream("Trips", Consumed.with(Serdes.String(), jsonSerdeTrip))
+        KStream<String, Trip> tripLines = builder.stream(INPUT_TOPIC_TRIPS, Consumed.with(Serdes.String(), jsonSerdeTrip))
                 .mapValues(v -> {
                     log.debug("Consuming trip: " + v);
                     return v; 
@@ -106,7 +109,7 @@ public class KafkaStreamProcessor {
                 .toStream();
 
         tripLines.peek((k, v) -> log.debug("Trip Aggregated: " + v));
-
+        
         // Juntando os dados de Route e Trip para criar resultdao
         KStream<String, Result> joinedStream = routeLines.join(
                 tripLines,
@@ -114,14 +117,15 @@ public class KafkaStreamProcessor {
                 JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(5)),
                 StreamJoined.with(Serdes.String(), jsonSerdeRoute, jsonSerdeTrip))
                 .peek((key, value) -> log.debug("New Result'" + value.getRoute()));
-
-        joinedStream.peek((key, value) -> log.debug("Resultado created: " + value));
-
-
-
-
+                
+                joinedStream.peek((key, value) -> log.debug("Resultado created: " + value));
+                
+                /*
 
 
+
+
+        
         // REQUISITOS 
 
         //5. Get the available seats per route
@@ -129,11 +133,12 @@ public class KafkaStreamProcessor {
         .mapValues((key, result) -> {
                 int availableSeats = result.getRoute().getPassengerCapacity() - result.getRoute().getPassengerCount();
                 return String.format("{\"routeId\":\"%s\",\"availableSeatsss\":%d}",
-                        result.getRoute().getRouteId(), availableSeats);
+                result.getRoute().getRouteId(), availableSeats);
         })
         .to(OUTPUT_TOPICS[1], Produced.with(Serdes.String(), Serdes.String())); // Enviar para "ResultsTopic-5"
-
-
+        
+        
+        */
 
         /* 
          * 

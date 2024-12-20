@@ -40,8 +40,8 @@ public class Producer {
         Trip trip = new Trip("trip-1", "route-1", "Los Angeles", "New York", "John Doe", "Bus");
 
         // Enviar os dados para o tópico 'Results'
-        sendMessage(producer, "DBInfoTopic-Route", route);
-        sendMessage(producer, "DBInfoTopic-Trip", trip);
+        sendMessage(producer, "DBInfoTopic-Routes", route);
+        sendMessage(producer, "DBInfoTopic-Trips", trip);
         sendMessage(producer, "Suppliers", supplier);
 
         // Fechar o produtor

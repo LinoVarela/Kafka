@@ -6,7 +6,6 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import models.Supplier;
 import models.Trip;
 import serializer.JSONDeserializer;
 import serializer.JSONSerializer;
@@ -19,24 +18,47 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TripApp {
     private static final Logger log = LoggerFactory.getLogger(TripApp.class);
 
-    private static final AtomicInteger tripCounter = new AtomicInteger(1);
+    private static final AtomicInteger tripCounter = new AtomicInteger(2);
+
+    // Método para gerar uma viagem aleatória
+    public static Trip generateRandomTrip() {
+        String[] locations = { "StationA", "StationB", "StationC", "StationD", "StationE" };
+        String[] transportTypes = { "Bus", "Taxi", "Train", "Metro", "Scooter" };
+        String[] passengers = { "Passenger1", "Passenger2", "Passenger3", "Passenger4", "Passenger5" };
+        String[] routeIds = { "route-1", "route-2", "route-3", "route-4", "route-5" };
+
+        String origin = locations[(int) (Math.random() * locations.length)];
+        String destination;
+        do {
+            destination = locations[(int) (Math.random() * locations.length)];
+        } while (destination.equals(origin)); // Evitar que origem e destino sejam iguais
+
+        return new Trip(
+                "trip-" + tripCounter.getAndIncrement(),
+                routeIds[(int) (Math.random() * routeIds.length)],
+                origin,
+                destination,
+                passengers[(int) (Math.random() * passengers.length)],
+                transportTypes[(int) (Math.random() * transportTypes.length)]);
+    }
 
     public static void main(String[] args) {
         String bootstrapServers = "kafka_projeto_devcontainer-broker1-1:9092";
         final String GROUP_ID = "my-fourth-application";
         final String OUTPUT_TOPIC = "Trips";
-        final String INPUT_TOPIC = "DBInfoTopic-Trip";
+        final String INPUT_TOPIC = "DBInfoTopic-Trips";
 
         // Configurações para o consumidor de DBInfo
         Properties consumerProperties = new Properties();
         consumerProperties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,StringDeserializer.class.getName());
-        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,JSONDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                JSONDeserializer.class.getName());
         consumerProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         consumerProperties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerProperties.put("JSONClass", Trip.class);
 
-        
         // Configurações para o produtor de Trips
         Properties producerProperties = new Properties();
         producerProperties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -73,7 +95,7 @@ public class TripApp {
                     log.debug("Received Trip: {}", record.value());
 
                     // Processar a mensagem e gerar ID único no formato `trip-1`, `trip-2`...
-                    Trip processedTrip = generateTripWithUniqueId(record.value());
+                    Trip processedTrip = generateRandomTrip();
 
                     // Produz para o tópico Trips
                     ProducerRecord<String, Trip> producerRecord = new ProducerRecord<>(OUTPUT_TOPIC,
@@ -96,14 +118,4 @@ public class TripApp {
         }
     }
 
-    // Método para gerar Trips com IDs únicos no formato desejado
-    private static Trip generateTripWithUniqueId(Trip trip) {
-        return new Trip(
-                "trip-" + tripCounter.getAndIncrement(),
-                trip.getRouteId(),
-                trip.getOrigin(),
-                trip.getDestination(),
-                trip.getPassengerName(),
-                trip.getTransportType());
-    }
 }

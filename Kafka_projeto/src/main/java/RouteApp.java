@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+//import com.fasterxml.jackson.databind.ObjectMapper;
 
 import models.Route;
 import models.Supplier;
@@ -25,7 +25,6 @@ public class RouteApp {
 
     private static final AtomicInteger routeCounter = new AtomicInteger(1);
 
-    // Geração de valores aleatórios para simular rotas
     public static Route generateRandomRoute(String supplierId) {
         String[] origins = { "CityA", "CityB", "CityC", "CityD" };
         String[] destinations = { "CityX", "CityY", "CityZ", "CityW" };
@@ -58,12 +57,13 @@ public class RouteApp {
         // Configurações do consumidor
         Properties consumerProperties = new Properties();
         consumerProperties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,StringDeserializer.class.getName());
-        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,JSONDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class.getName());
+        consumerProperties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                JSONDeserializer.class.getName());
         consumerProperties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         consumerProperties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         consumerProperties.put("JSONClass", Supplier.class);
-
 
         // Configurações do produtor
         Properties producerProperties = new Properties();
@@ -93,7 +93,7 @@ public class RouteApp {
 
         try {
             while (true) {
-                ConsumerRecords<String, Supplier> records = consumer.poll(Duration.ofMillis(100));
+                ConsumerRecords<String, Supplier> records = consumer.poll(Duration.ofMillis(1000));
                 log.info("Fetched {} records from topic: {}", records.count(), INPUT_TOPIC);
                 System.out.println("HERE2");
                 for (ConsumerRecord<String, Supplier> record : records) {
