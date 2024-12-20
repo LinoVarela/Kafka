@@ -1,13 +1,13 @@
 package models;
 
-
 public class Supplier {
     private String id;
     private String nome;
     private String localizacao;
 
     // Construtores, getters e setters
-    public Supplier() {}
+    public Supplier() {
+    }
 
     public Supplier(String id, String nome, String localizacao) {
         this.id = id;

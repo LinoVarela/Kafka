@@ -36,7 +36,7 @@ public class RouteApp {
         do {
             destination = destinations[(int) (Math.random() * destinations.length)];
         } while (destination.equals(origin)); // Evitar que origem e destino sejam iguais
-        int passengerCapacity = (int) (Math.random() * 200) + 1;
+        int passengerCapacity = (int) (Math.random() * 200) + 5;
 
         return new Route(
                 "route-" + routeCounter.getAndIncrement(),
@@ -45,7 +45,7 @@ public class RouteApp {
                 passengerCapacity,
                 transportTypes[(int) (Math.random() * transportTypes.length)],
                 operator,
-                supplierId, passengerCapacity);
+                supplierId, passengerCapacity-5);
     }
 
     public static void main(String[] args) throws JsonMappingException, JsonProcessingException {

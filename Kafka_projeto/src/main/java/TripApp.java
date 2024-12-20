@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TripApp {
     private static final Logger log = LoggerFactory.getLogger(TripApp.class);
 
-    private static final AtomicInteger tripCounter = new AtomicInteger(2);
+    private static final AtomicInteger tripCounter = new AtomicInteger(1);
 
     // Método para gerar uma viagem aleatória
     public static Trip generateRandomTrip() {
@@ -35,7 +35,7 @@ public class TripApp {
 
         return new Trip(
                 "trip-" + tripCounter.getAndIncrement(),
-                routeIds[(int) (Math.random() * routeIds.length)],
+                routeIds[0],
                 origin,
                 destination,
                 passengers[(int) (Math.random() * passengers.length)],
