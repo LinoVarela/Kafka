@@ -9,7 +9,7 @@
         "mode": "bulk",
         "query": "SELECT id, name FROM suppliers;",
         "poll.interval.ms": "60000",
-        "topic.prefix": "DBInfo",
+        "topics.regex": "^DBInfo.*",
         "value.converter": "org.apache.kafka.connect.storage.StringConverter"
     }
 }
