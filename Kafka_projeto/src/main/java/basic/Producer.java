@@ -79,13 +79,13 @@ public class Producer {
 
 
         // Exemplo de route
-        Route route = new Route("route-1", "Los Angeles", "New York", 200, "Bus", "XYZ Corp", "supplier-1", 50);
+        //Route route = new Route("route-1", "Los Angeles", "New York", 200, "Bus", "XYZ Corp", "supplier-1", 50);
         // Exemplo de viagem
         Trip trip = new Trip("trip-1", "route-1", "Los Angeles", "New York", "John Doe", "Bus");
         Supplier supplier = new Supplier("supplier-1", "lino", "portugal");
 
         sendMessage(producer, "DBInfoTopic-Trips", trip);
-        sendMessage(producer, "DBInfoTopic-Routes", route);
+        //sendMessage(producer, "DBInfoTopic-Routes", route);
         sendMessage(producer, "Suppliers", supplier);
 
 

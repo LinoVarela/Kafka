@@ -9,6 +9,7 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -176,6 +177,8 @@ public class KafkaStream {
 
                 // ---------------------------- REQUISITOS ----------------------------
 
+                
+
                 // 4. Get passengers per route
                 KStream<String, Result> passengersPerRoute = joinedStream;
                 passengersPerRoute.mapValues((key, result) -> {
@@ -187,6 +190,7 @@ public class KafkaStream {
                     );
                 })
                 .to(OUTPUT_TOPICS[0], Produced.with(Serdes.String(), Serdes.String())); // Enviar para "ResultsTopic-4"
+                
                 
                 // 5. Get the available seats per route
                 KStream<String, Result> availableSeatsPerRoute = joinedStream;
@@ -201,7 +205,7 @@ public class KafkaStream {
                 })
                 .to(OUTPUT_TOPICS[1], Produced.with(Serdes.String(), Serdes.String())); // Enviar para "ResultsTopic-5"
                 
-
+                
                 // 6. Get the occupancy percentage per route
                 KStream<String, Result> occupancyPercentage = joinedStream;
                 occupancyPercentage.mapValues((key, result) -> {
@@ -269,31 +273,57 @@ public class KafkaStream {
                         "{\"field\": \"routeId\", \"type\": \"string\"}, " +
                         "{\"field\": \"totalAvailableSeats\", \"type\": \"long\"}]}, " +
                         "\"payload\": {\"routeId\": \"%s\", \"totalAvailableSeats\": %d}}",
-                        "route", totalSeats
+                        "route-1", totalSeats
                 ))
                 .to(
                         OUTPUT_TOPICS[4],
                         Produced.with(Serdes.String(), Serdes.String()) // Enviar para "ResultsTopic-8"
                 );
 
+                
                 // 9. Get total occupancy percentage (routes)
                 KStream<String, Result> occupancyPercentageRoutes = joinedStream;
 
                 occupancyPercentageRoutes
-                .map((key, result) -> new KeyValue<>(key,
-                        (float) result.getRoute().getPassengerCount() / result.getRoute().getPassengerCapacity() * 100)) // Calcula a ocupação de cada rota em %
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Float())) // Agrupa por routeId (String) e valores Float (ocupação)
-                .reduce(
-                        (occupancy1, occupancy2) -> occupancy1 + occupancy2, // Soma as porcentagens de ocupação
-                        Materialized.with(Serdes.String(), Serdes.Float()) // Usando Materialized com Serdes configurados
+                .map((key, result) -> {
+                        // Extract total passengers and capacity for each route
+                        int passengerCount = result.getRoute().getPassengerCount();
+                        int capacity = result.getRoute().getPassengerCapacity();
+                        return new KeyValue<>("global", Arrays.asList(passengerCount, capacity)); // Use "global" key to aggregate across all routes
+                })
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.ListSerde(ArrayList.class, Serdes.Integer()))) // Aggregate all routes under "global"
+                .aggregate(
+                        // Initialize with a list [0, 0] (total passengers, total capacity)
+                        () -> {
+                        ArrayList<Integer> agg = new ArrayList<>();
+                        agg.add(0); // Total passengers
+                        agg.add(0); // Total capacity
+                        return agg;
+                        },
+                        // Aggregate total passengers and capacity
+                        (key, value, agg) -> {
+                        agg.set(0, agg.get(0) + value.get(0)); // Sum passengers
+                        agg.set(1, agg.get(1) + value.get(1)); // Sum capacity
+                        return agg;
+                        },
+                        Materialized.with(Serdes.String(), Serdes.ListSerde(ArrayList.class, Serdes.Integer()))
                 )
                 .toStream()
-                .mapValues(totalOccupancy -> String.format(
-                        "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"routeId\", \"type\": \"string\"}, {\"field\": \"totalOccupancyPercentage\", \"type\": \"float\"}]}, "
-                        + "\"payload\": {\"routeId\": \"%s\", \"totalOccupancyPercentage\": %.2f}}", totalOccupancy))
+                .mapValues((key, agg) -> {
+                        // Calculate the overall occupancy percentage
+                        float totalPassengers = agg.get(0);
+                        float totalCapacity = agg.get(1);
+                        float totalOccupancyPercentage = (totalPassengers / totalCapacity) * 100;
+                        return String.format(
+                        Locale.US,
+                        "{\"schema\": {\"type\": \"struct\", \"fields\": [\"type\": \"string\", \"field\": \"routeId\"}, {\"type\": \"float\", \"field\": \"totalOccupancyPercentage\"}]}, \"payload\": {\"routeId\": \"%s\", \"totalOccupancyPercentage\": %.2f}}",
+                        key,
+                        totalOccupancyPercentage
+                        );
+                })
                 .to(
                         OUTPUT_TOPICS[5],
-                        Produced.with(Serdes.String(), Serdes.String()) // Enviar para "ResultsTopic-9"
+                        Produced.with(Serdes.String(), Serdes.String()) // Send to "ResultsTopic-9"
                 );
 
 
@@ -379,8 +409,8 @@ public class KafkaStream {
                         key, totalOccupancy // Tipo de transporte e a ocupação mínima
                 ))
                 .to(OUTPUT_TOPICS[8], Produced.with(Serdes.String(), Serdes.String()));  // Envia para o tópico de saída
-     */
-
+*/
+             /* 
                 // 13. Get the most used transport type in the last hour (using a tumbling time window)
 
                 Duration windowDuration = Duration.ofSeconds(30);
@@ -406,11 +436,11 @@ public class KafkaStream {
                 .mapValues((key, totalPassengers) -> String.format(
                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"routeId\", \"type\": \"string\"}, {\"field\": \"transportType\", \"type\": \"string\"}, {\"field\": \"totalPassengers\", \"type\": \"integer\"}]}, "
                         + "\"payload\": {\"routeId\": \"%s\", \"transportType\": \"%s\", \"totalPassengers\": %d}}",
-                        key, key, totalPassengers)) // Formata como JSON
+                        "route-1", "Bus", totalPassengers)) // Formata como JSON
                 .to(OUTPUT_TOPICS[9], Produced.with(Serdes.String(), Serdes.String())); // Envia para "ResultsTopic-13"
 
 
-                
+ 
                 // 14. Least occupied transport type in the last hour (using a tumbling time window)
                 windowDuration = Duration.ofHours(1); // janela de 1 hora
                 //MUITO SEMELHANTE AO ANTERIOR
@@ -438,10 +468,10 @@ public class KafkaStream {
                         .mapValues((key, totalPassengers) -> String.format(
                                         "{\"schema\": {\"type\": \"struct\", \"fields\": [{\"field\": \"routeId\", \"type\": \"string\"}, {\"field\": \"transportType\", \"type\": \"string\"}, {\"field\": \"totalPassengers\", \"type\": \"integer\"}]}, "
                                                         + "\"payload\": {\"routeId\": \"%s\", \"transportType\": \"%s\", \"totalPassengers\": %d}}",
-                                        key, key, totalPassengers)) // Format as JSON
+                                        "route-1", key, totalPassengers)) // Format as JSON
                         .to(OUTPUT_TOPICS[10], Produced.with(Serdes.String(), Serdes.String()));
 
-
+ */
                 // 15. Route Operator Name with most Occupancy
                 KStream<String, Result> routeOperatorNameOccupancy= joinedStream;
                 routeOperatorNameOccupancy
@@ -494,7 +524,7 @@ public class KafkaStream {
                 ))
                 .to(OUTPUT_TOPICS[12], Produced.with(Serdes.String(), Serdes.String())); 
 
-
+            
                 /*
                  * TESTE PARA  VER TABELA DO JOINEDSTREAM
                  * joinedStream
