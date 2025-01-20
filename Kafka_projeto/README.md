@@ -34,6 +34,6 @@ project3=# select * from "ResultsTopic-teste";
 
 ### Configurações
 
-Foi utilizado um docker compose e ficheiros para configurar os conectores para a base de dados
+Foi utilizado um docker compose e ficheiros de configuração para configurar os conectores para a base de dados
 O formato de comunicação é JSON
 
